@@ -11,20 +11,20 @@ namespace TorrentDownloader
     public class TorrentDownloader
     {
         private readonly Uri _baseUri = new Uri(ConfigurationManager.AppSettings["BaseUri"]);
-        private List<Movie> _searchedMovieList = new List<Movie>();
+        public List<Movie> SearchedMovieList = new List<Movie>();
 
-        public async Task<List<Movie>> GetMovieList(string movieName)
+        public async Task<List<Movie>> GetMovieListAsync(string movieName)
         {
             try
             {
-                _searchedMovieList = await QueryExtraTorrent(movieName);
-                return _searchedMovieList;
+                SearchedMovieList = await QueryExtraTorrentAsync(movieName);
+                return SearchedMovieList;
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
                 Console.WriteLine($"Searching for movie: {movieName}");
-                return await GetMovieList(movieName);
+                return await GetMovieListAsync(movieName);
             }
         }
 
@@ -39,7 +39,7 @@ namespace TorrentDownloader
                     return string.Empty;
                 }
 
-                var movie = _searchedMovieList[index - 1];
+                var movie = SearchedMovieList[index - 1];
                 var downloadUrl = movie.DownloadUrl.Replace("torrent", "download").Replace("html", "torrent");
 
                 Console.WriteLine($"Downloading ... {movie.Name} FROM {downloadUrl}");
@@ -52,10 +52,9 @@ namespace TorrentDownloader
 
                 using (var client = new HttpClient())
                 {
-
                     client.BaseAddress = _baseUri;
-                    var result = await client.GetAsync(downloadUrl);
-                    var html = await result.Content.ReadAsStringAsync();
+                    var result = await client.GetAsync(downloadUrl).ConfigureAwait(false);
+                    var html = await result.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                     if (html.ToUpper().Contains("ERROR"))
                     {
@@ -63,7 +62,7 @@ namespace TorrentDownloader
                         return await DownloadAsync(index, ++attempt);
                     }
 
-                    var stream = await result.Content.ReadAsStreamAsync();
+                    var stream = await result.Content.ReadAsStreamAsync().ConfigureAwait(false);
 
                     string file = $"{ConfigurationManager.AppSettings["DownloadLocation"]}{movie.Name}.torrent";
 
@@ -90,7 +89,7 @@ namespace TorrentDownloader
             }
         }
 
-        private async Task<List<Movie>> QueryExtraTorrent(string movieName)
+        private async Task<List<Movie>> QueryExtraTorrentAsync(string movieName)
         {
             string url = $"search/?search={movieName}{ConfigurationManager.AppSettings["SearchOptions"]}";
             List<Movie> movies = new List<Movie>();
@@ -100,8 +99,8 @@ namespace TorrentDownloader
                 client.BaseAddress = _baseUri;
 
                 Console.WriteLine("Loading...");
-                var response = await client.GetAsync(url);
-                var data = await response.Content.ReadAsStringAsync();
+                var response = await client.GetAsync(url).ConfigureAwait(false);
+                var data = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                 HtmlDocument document = new HtmlDocument();
                 document.LoadHtml(data);
