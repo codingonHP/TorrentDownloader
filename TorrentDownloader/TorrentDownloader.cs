@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
@@ -91,7 +92,7 @@ namespace TorrentDownloader
 
         private async Task<List<Movie>> QueryExtraTorrentAsync(string movieName)
         {
-            string url = $"search/?search={movieName}{ConfigurationManager.AppSettings["SearchOptions"]}";
+            string url = $"search/?search={movieName.Replace(" ", "+")}{ConfigurationManager.AppSettings["SearchOptions"]}";
             List<Movie> movies = new List<Movie>();
 
             using (HttpClient client = new HttpClient())
@@ -109,20 +110,29 @@ namespace TorrentDownloader
 
                 foreach (var link in links)
                 {
-                    if (link.InnerText != null && link.InnerText.ToUpper().Contains(movieName.ToUpper()))
+                    try
                     {
-
-                        Movie movie = new Movie
+                        if (link.InnerText != null && movieName.ToUpper().Split(' ').Any(t => link.InnerText.ToUpper().Contains(t)))
                         {
-                            Name = link.InnerText,
-                            DownloadUrl = link.Attributes["href"].Value,
-                            Added = link.ParentNode.ParentNode.ChildNodes[3].InnerText,
-                            Size = link.ParentNode.ParentNode.ChildNodes[4].InnerText.Replace("&nbsp;", ""),
-                            Seed = link.ParentNode.ParentNode.ChildNodes[5].InnerText,
-                            Leech = link.ParentNode.ParentNode.ChildNodes[6].InnerText,
-                        };
+                            if (link.ParentNode.ParentNode.ChildNodes.Count > 6)
+                            {
+                                Movie movie = new Movie
+                                {
+                                    Name = link.InnerText,
+                                    DownloadUrl = link.Attributes["href"].Value,
+                                    Added = GetNodeValue(link, 3),
+                                    Size = GetNodeValue(link, 4).Replace("&nbsp;", ""),
+                                    Seed = GetNodeValue(link, 5),
+                                    Leech = GetNodeValue(link, 6)
+                                };
 
-                        movies.Add(movie);
+                                movies.Add(movie);
+                            }
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
                     }
                 }
             }
@@ -151,6 +161,19 @@ namespace TorrentDownloader
             string output = pProcess.StandardOutput.ReadToEnd();
             Console.WriteLine(output);
             pProcess.WaitForExit();
+        }
+
+        private string GetNodeValue(HtmlNode node, int index)
+        {
+            if (node?.ParentNode?.ParentNode?.ChildNodes.Count > index)
+            {
+                var data = node.ParentNode.ParentNode.ChildNodes[index].InnerText;
+
+                return data;
+            }
+
+            return string.Empty;
+
         }
     }
 }

@@ -39,7 +39,7 @@ namespace TorrentDownloader
         {
             if (args != null && args.Length > 0)
             {
-                UserChoice.Movie = args[0];
+                UserChoice.Movie = args[0].Trim();
                 return this;
             }
 
@@ -100,7 +100,7 @@ namespace TorrentDownloader
                 }
 
             }
-            while (UserChoice.Index <= 0 || UserChoice.Index > _downloader.SearchedMovieList.Count || UserChoice.Index == -1);
+            while (UserChoice.Index <= 0 && UserChoice.Index != -1 || UserChoice.Index > _downloader.SearchedMovieList.Count);
 
             return this;
         }
